@@ -1,0 +1,29 @@
+{
+  "default": "deny",
+  "roles": {
+    "guest": {
+      "allow_commands": ["pwd", "ls", "head"],
+      "read_only": true,
+      "allow_paths": [
+        "/Users/gross/src/040926/PiKit/docs",
+        "/Users/gross/src/040926/PiKit/README.md"
+      ]
+    },
+    "developer": {
+      "allow_commands": ["pwd", "ls", "find", "grep", "head", "cat"],
+      "read_only": true,
+      "allow_paths": [
+        "/Users/gross/src/040926/PiKit",
+        "/Users/gross/src/040926/PiKit/src",
+        "/Users/gross/src/040926/PiKit/modules"
+      ]
+    },
+    "maintainer": {
+      "allow_commands": ["*"],
+      "read_only": false,
+      "allow_paths": [
+        "/Users/gross/src/040926/PiKit"
+      ]
+    }
+  }
+}

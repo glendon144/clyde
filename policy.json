@@ -1,0 +1,610 @@
+{
+  "admission_rules": {
+    "_comment": "Ordered, first match wins, deny by default. This gate runs BEFORE role/provider/budget checks and does not replace them.",
+    "default": "deny",
+    "rules": [
+      {
+        "decision": "deny",
+        "name": "deny_unknown_user",
+        "reason": "only the broker owner may submit tasks",
+        "when": "user != 'gross'"
+      },
+      {
+        "decision": "deny",
+        "name": "deny_shell_outside_home",
+        "reason": "shell tasks are confined to the owner's home tree",
+        "when": "task_type == 'shell' and not path_under(cwd, '/Users/gross')"
+      },
+      {
+        "decision": "deny",
+        "name": "deny_oversized_swarm",
+        "reason": "declared agent fan-out exceeds the hard ceiling",
+        "when": "agent_count > 8"
+      },
+      {
+        "decision": "deny",
+        "name": "deny_system_level_commands",
+        "reason": "system-level commands are never brokered",
+        "when": "task_type == 'shell' and len(argv) > 0 and any_of(argv[0], ['dd', 'mkfs', 'fdisk', 'diskutil', 'shutdown', 'reboot', 'halt'])"
+      },
+      {
+        "decision": "deny",
+        "name": "deny_recursive_force_delete",
+        "reason": "recursive force delete must be run by a human, not brokered",
+        "when": "task_type == 'shell' and startswith(command, 'rm ') and (contains(command, ' -rf') or contains(command, ' -fr') or contains(command, ' -r '))"
+      },
+      {
+        "decision": "allow",
+        "name": "allow_read_only_shell",
+        "reason": "read-only shell inspection is permitted",
+        "when": "task_type == 'shell' and len(argv) > 0 and any_of(argv[0], ['ls', 'pwd', 'head', 'cat', 'grep', 'find'])"
+      },
+      {
+        "decision": "allow",
+        "name": "allow_maintainer_shell",
+        "reason": "maintainer may run shell tasks subject to role policy",
+        "when": "task_type == 'shell' and role == 'maintainer'"
+      },
+      {
+        "decision": "allow",
+        "name": "allow_llm_tasks",
+        "reason": "model inference is permitted subject to budget and routing",
+        "when": "task_type == 'llm'"
+      },
+      {
+        "decision": "allow",
+        "name": "allow_ocr_tasks",
+        "reason": "OCR extraction is permitted",
+        "when": "task_type == 'ocr'"
+      },
+      {
+        "decision": "allow",
+        "name": "allow_maintainer_mcp",
+        "reason": "maintainer may reach configured MCP servers",
+        "when": "task_type == 'mcp' and role == 'maintainer'"
+      },
+      {
+        "decision": "allow",
+        "name": "allow_dream_milestone",
+        "reason": "explicit Dream milestone capture is permitted",
+        "when": "task_type == 'dream' and intent == 'store_milestone' and role == 'maintainer'"
+      }
+    ]
+  },
+  "agent_controls": {
+    "default_max_child_tasks": 0,
+    "hard_max_child_tasks": 8,
+    "require_explicit_swarm_approval": true
+  },
+  "budget": {
+    "daily_global_limit": 5.0,
+    "per_task_limit": 0.25,
+    "provider_daily_limits": {
+      "anthropic": 2.0,
+      "baseten": 2.0,
+      "deepseek": 2.0,
+      "dream_rest": 0.0,
+      "google_vision": 1.0,
+      "local": 0.0,
+      "mcp_openbrain": 0.0,
+      "openai": 3.0,
+      "shell": 0.0
+    },
+    "provider_per_task_limits": {
+      "anthropic": 0.25,
+      "baseten": 0.1,
+      "deepseek": 0.05,
+      "dream_rest": 0.0,
+      "google_vision": 0.05,
+      "local": 0.0,
+      "mcp_openbrain": 0.0,
+      "openai": 0.1,
+      "shell": 0.0
+    },
+    "risk_tier_per_task_limits": {
+      "external_inference": 0.05,
+      "external_read": 0.0,
+      "external_write": 0.0,
+      "file_read": 0.05,
+      "shell_safe": 0.0
+    }
+  },
+  "default": "deny",
+  "enforcement": {
+    "_comment": "strict: broker decision is final. permissive: denied requests may fall back to mcp_proxy. Override per-run with --strict/--permissive.",
+    "mode": "strict"
+  },
+  "fallback": {
+    "_comment": "Only consulted in permissive mode. Shell tasks can never fall back; that guard is in code, not here.",
+    "allow_task_types": [
+      "mcp"
+    ],
+    "enabled": true,
+    "mcp_proxy": {
+      "timeout": 30,
+      "url": "http://127.0.0.1:3000"
+    },
+    "on_execution_failure": false,
+    "on_policy_denial": true
+  },
+  "mcp_servers": {
+    "clones_brain": {
+      "_comment": "DISABLED: clones_brain_mcp serves SSE. The broker's MCP adapter speaks one-shot JSON-RPC POST only. Enable once either the adapter learns SSE or the server moves to streamable-http.",
+      "auth_header": "x-brain-key",
+      "enabled": false,
+      "tools": [
+        "capture_thought",
+        "search_thoughts",
+        "recover_context",
+        "list_recent",
+        "health"
+      ],
+      "transport": "sse",
+      "url": "http://127.0.0.1:3001"
+    },
+    "openbrain": {
+      "auth_header": "x-brain-key",
+      "token_file": "~/open-brain/claude_mcp_token",
+      "tools": [
+        "capture_thought",
+        "search_thoughts",
+        "list_thoughts",
+        "thought_stats"
+      ],
+      "url": "https://lylmeseyluezpvclnllt.supabase.co/functions/v1/open-brain-mcp"
+    }
+  },
+  "prefetch": [
+    {
+      "enabled": true,
+      "intent": "summarize",
+      "payload": {
+        "text": "Warm the cache with a startup summary for the AI Broker README."
+      },
+      "provider": "local",
+      "type": "llm",
+      "user_role": "developer"
+    }
+  ],
+  "provider_credentials": {
+    "baseten": {
+      "env_var": "BASETEN_API_KEY",
+      "key_file": "~/baseten.key"
+    },
+    "deepseek": {
+      "env_var": "DEEPSEEK_API_KEY",
+      "key_file": "~/deepseek.key"
+    },
+    "openai": {
+      "env_var": "OPENAI_API_KEY",
+      "key_file": "~/openai.key"
+    }
+  },
+  "provider_registry": {
+    "anthropic": {
+      "enabled": true,
+      "quality_scores": {
+        "analyze": 0.94,
+        "classify": 0.9,
+        "summarize": 0.9
+      },
+      "scope": "cloud",
+      "status": "healthy",
+      "summary": "High-quality premium reasoning path; role policy controls normal access."
+    },
+    "baseten": {
+      "enabled": true,
+      "quality_scores": {
+        "analyze": 0.7,
+        "classify": 0.74,
+        "summarize": 0.75
+      },
+      "scope": "cloud",
+      "status": "healthy",
+      "summary": "OpenAI-compatible hosted model path for fallback experiments."
+    },
+    "deepseek": {
+      "enabled": true,
+      "quality_scores": {
+        "analyze": 0.74,
+        "classify": 0.8,
+        "summarize": 0.78
+      },
+      "scope": "cloud",
+      "status": "healthy",
+      "summary": "Low-cost cloud model candidate for routine text and code tasks."
+    },
+    "google_vision": {
+      "enabled": false,
+      "policy": {
+        "allow_benchmark": false,
+        "allow_fallback": false,
+        "allow_manual_override": false,
+        "allow_routing": false
+      },
+      "scope": "cloud",
+      "status": "disabled_by_policy",
+      "summary": "Disabled until explicit OCR cost controls are added."
+    },
+    "grok": {
+      "enabled": false,
+      "policy": {
+        "allow_benchmark": false,
+        "allow_fallback": false,
+        "allow_manual_override": false,
+        "allow_routing": false
+      },
+      "quality_scores": {
+        "analyze": -1.0,
+        "classify": -1.0,
+        "summarize": -1.0
+      },
+      "reason": "Explicitly excluded by owner policy.",
+      "scope": "cloud",
+      "status": "blocked",
+      "summary": "-1 [DO NOT USE UNDER ANY CIRCUMSTANCES]",
+      "value_scores": {
+        "analyze": -1.0,
+        "classify": -1.0,
+        "summarize": -1.0
+      }
+    },
+    "local": {
+      "enabled": true,
+      "quality_scores": {
+        "analyze": 0.55,
+        "classify": 0.7,
+        "summarize": 0.7
+      },
+      "scope": "local",
+      "status": "healthy",
+      "summary": "Local inference default; zero marginal token cost when available."
+    },
+    "openai": {
+      "enabled": true,
+      "quality_scores": {
+        "analyze": 0.88,
+        "classify": 0.88,
+        "summarize": 0.86
+      },
+      "scope": "cloud",
+      "status": "healthy",
+      "summary": "General premium cloud model path; use when quality justifies spend."
+    }
+  },
+  "provider_retry_attempts": {
+    "local": 1,
+    "shell": 1
+  },
+  "provider_retry_max_attempts": 2,
+  "provider_settings": {
+    "baseten": {
+      "base_url": "https://inference.baseten.co/v1",
+      "model": "openai/gpt-oss-120b",
+      "timeout_seconds": 60
+    },
+    "deepseek": {
+      "base_url": "https://api.deepseek.com",
+      "model": "deepseek-v4-flash",
+      "timeout_seconds": 60
+    },
+    "dream_rest": {
+      "base_url": "http://127.0.0.1:8181",
+      "health_url": "http://127.0.0.1:8181/",
+      "source_agent": "ai-broker",
+      "timeout_seconds": 30,
+      "token_env_var": "DREAM_API_TOKEN",
+      "token_file": "/home/gross/dream/dream_tokens"
+    },
+    "local": {
+      "api_key": "local-llama",
+      "base_url": "http://127.0.0.1:8080/v1",
+      "batch_size": 256,
+      "bin_path": "/home/gross/llama.cpp/build/bin/llama-server",
+      "context_size": 4096,
+      "gpu_layers": 28,
+      "health_url": "http://127.0.0.1:8080/health",
+      "host": "0.0.0.0",
+      "log_dir": "/home/gross/.cache/llama-run",
+      "model": "mistral-7b-instruct",
+      "model_path": "/home/gross/localai/models/mistral/mistral",
+      "models_url": "http://127.0.0.1:8080/v1/models",
+      "port": 8080,
+      "root_url": "http://127.0.0.1:8080/",
+      "threads": 4,
+      "timeout_seconds": 60
+    },
+    "openai": {
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini",
+      "timeout_seconds": 60
+    }
+  },
+  "roles": {
+    "developer": {
+      "allow_paths": [
+        "./",
+        "./src",
+        "./modules"
+      ],
+      "allow_providers": [
+        "local",
+        "openai",
+        "deepseek",
+        "baseten",
+        "google_vision",
+        "shell"
+      ],
+      "allow_tasks": {
+        "llm": [
+          "summarize",
+          "analyze",
+          "classify"
+        ],
+        "ocr": [
+          "ocr_extract"
+        ],
+        "shell": {
+          "cat": {
+            "max_positionals": 2,
+            "min_positionals": 1
+          },
+          "find": {
+            "max_positionals": 2,
+            "min_positionals": 1,
+            "options_with_values": {
+              "-maxdepth": {
+                "type": "int"
+              },
+              "-name": {
+                "type": "any"
+              },
+              "-type": {
+                "values": [
+                  "f",
+                  "d"
+                ]
+              }
+            }
+          },
+          "grep": {
+            "allowed_flags": [
+              "-n",
+              "-i"
+            ],
+            "max_positionals": 2,
+            "min_positionals": 2
+          },
+          "head": {
+            "max_positionals": 1,
+            "min_positionals": 1,
+            "options_with_values": {
+              "-n": {
+                "type": "int"
+              }
+            }
+          },
+          "ls": {
+            "allowed_flags": [
+              "-a",
+              "-l",
+              "-la",
+              "-al"
+            ],
+            "max_positionals": 2
+          },
+          "pwd": {
+            "allow_positionals": false
+          }
+        }
+      },
+      "deny_providers": [
+        "anthropic",
+        "dream_rest",
+        "mcp_openbrain"
+      ],
+      "read_only": true
+    },
+    "guest": {
+      "allow_paths": [
+        "./docs",
+        "./README.md",
+        "./"
+      ],
+      "allow_providers": [
+        "local",
+        "shell"
+      ],
+      "allow_tasks": {
+        "llm": [
+          "summarize"
+        ],
+        "ocr": false,
+        "shell": {
+          "head": {
+            "max_positionals": 1,
+            "min_positionals": 1,
+            "options_with_values": {
+              "-n": {
+                "type": "int"
+              }
+            }
+          },
+          "ls": {
+            "allowed_flags": [
+              "-a",
+              "-l",
+              "-la",
+              "-al"
+            ],
+            "max_positionals": 1
+          },
+          "pwd": {
+            "allow_positionals": false
+          }
+        }
+      },
+      "deny_providers": [
+        "anthropic",
+        "google_vision",
+        "openai",
+        "deepseek",
+        "baseten",
+        "dream_rest",
+        "mcp_openbrain"
+      ],
+      "read_only": true
+    },
+    "maintainer": {
+      "allow_paths": [
+        "./"
+      ],
+      "allow_providers": [
+        "*"
+      ],
+      "allow_tasks": {
+        "dream": [
+          "store_milestone"
+        ],
+        "llm": [
+          "summarize",
+          "analyze",
+          "classify",
+          "vision"
+        ],
+        "mcp": [
+          "capture_thought",
+          "search_thoughts",
+          "list_thoughts",
+          "thought_stats"
+        ],
+        "ocr": [
+          "ocr_extract"
+        ],
+        "shell": [
+          "*"
+        ]
+      },
+      "deny_providers": [],
+      "read_only": false
+    }
+  },
+  "routing": {
+    "fallback_order": [
+      "deepseek",
+      "openai",
+      "baseten",
+      "anthropic",
+      "local"
+    ],
+    "intent_routes": {
+      "analyze": [
+        "deepseek",
+        "openai",
+        "baseten",
+        "anthropic",
+        "local"
+      ],
+      "capture_thought": [
+        "mcp_openbrain"
+      ],
+      "classify": [
+        "deepseek",
+        "openai",
+        "baseten",
+        "anthropic",
+        "local"
+      ],
+      "list_thoughts": [
+        "mcp_openbrain"
+      ],
+      "ocr_extract": [
+        "google_vision",
+        "local"
+      ],
+      "search_thoughts": [
+        "mcp_openbrain"
+      ],
+      "store_milestone": [
+        "dream_rest"
+      ],
+      "summarize": [
+        "deepseek",
+        "openai",
+        "baseten",
+        "anthropic",
+        "local"
+      ],
+      "thought_stats": [
+        "mcp_openbrain"
+      ],
+      "vision": [
+        "anthropic"
+      ]
+    },
+    "task_routes": {
+      "dream": [
+        "dream_rest"
+      ],
+      "llm": [
+        "deepseek",
+        "openai",
+        "baseten",
+        "anthropic",
+        "local"
+      ],
+      "mcp": [
+        "mcp_openbrain"
+      ],
+      "ocr": [
+        "google_vision",
+        "local"
+      ],
+      "shell": [
+        "shell"
+      ]
+    }
+  },
+  "status_report": {
+    "sample_tasks": {
+      "analyze": {
+        "intent": "analyze",
+        "payload": {
+          "text": "Analyze this small provider-routing policy."
+        },
+        "type": "llm"
+      },
+      "classify": {
+        "intent": "classify",
+        "payload": {
+          "text": "Classify this request as low, medium, or high cost risk."
+        },
+        "type": "llm"
+      },
+      "summarize": {
+        "intent": "summarize",
+        "payload": {
+          "text": "Summarize this short calibration message for the status report."
+        },
+        "type": "llm"
+      }
+    }
+  },
+  "task_defaults": {
+    "dream": {
+      "cache_ttl_seconds": 0
+    },
+    "llm": {
+      "cache_ttl_seconds": 86400
+    },
+    "mcp": {
+      "cache_ttl_seconds": 0
+    },
+    "ocr": {
+      "cache_ttl_seconds": 604800
+    },
+    "shell": {
+      "cache_ttl_seconds": 0
+    }
+  }
+}

@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "${AI_BROKER_DIR:-$HOME/src/053026/ai_broker}"
+
+if [[ -z "${DEEPSEEK_API_KEY:-}" && -f "$HOME/deepseek.key" ]]; then
+  export DEEPSEEK_API_KEY="$(tr -d '\r\n' < "$HOME/deepseek.key")"
+fi
+export DEEPSEEK_BASE_URL="${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+PYTHON_BIN="${AI_BROKER_PYTHON:-$HOME/.venvs/ai_broker/bin/python}"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="python3"
+fi
+
+"$PYTHON_BIN" - <<'PY'
+import json
+import os
+import sys
+import time
+import traceback
+
+from ai_broker import AIBroker
+from provider_adapters import _provider_runtime_config
+
+
+def safe_json(value):
+    return json.dumps(value, sort_keys=True, default=str)
+
+
+def print_empty_text_diagnostics(result):
+    payload = result.get("result", {})
+    metadata = result.get("metadata", {}) if isinstance(result.get("metadata"), dict) else {}
+    print("empty_response_text_diagnostic=true")
+    print("broker_result_keys=" + safe_json(sorted(result.keys())))
+    if isinstance(payload, dict):
+        print("normalized_result_keys=" + safe_json(sorted(payload.keys())))
+        likely = {}
+        for field in ("text", "content", "message", "output", "response", "choices"):
+            if field in payload:
+                value = payload[field]
+                likely[field] = {"type": type(value).__name__, "empty": value in (None, "", [], {})}
+        print("normalized_likely_text_fields=" + safe_json(likely))
+    else:
+        print(f"normalized_result_type={type(payload).__name__}")
+
+    debug = metadata.get("response_debug")
+    if debug:
+        print("adapter_response_debug=" + safe_json(debug))
+    else:
+        visible_metadata = {
+            key: value for key, value in metadata.items()
+            if key in {"model", "provider_name", "base_url", "input_tokens", "output_tokens", "total_tokens"}
+        }
+        print("adapter_response_debug=unavailable")
+        print("visible_metadata=" + safe_json(visible_metadata))
+
+
+provider = "deepseek"
+broker = AIBroker()
+cleared = broker.clear_provider_status(provider)
+runtime = _provider_runtime_config(provider, broker.policy)
+model = runtime.get("model", "deepseek-v4-flash")
+base_url = runtime.get("base_url", os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"))
+
+task = {
+    "type": "llm",
+    "intent": "summarize",
+    "provider": provider,
+    "payload": {
+        "text": "Reply with exactly: DeepSeek provider test OK.",
+        "model": model,
+        "max_tokens": 80,
+        "temperature": 0,
+        "live_test_nonce": str(time.time_ns()),
+    },
+}
+
+print(f"provider={provider}")
+print(f"model={model}")
+print(f"base_url={base_url}")
+print(f"cleared_stale_health={str(cleared).lower()}")
+
+try:
+    result = broker.process_task(task, user_role="developer")
+except Exception as exc:
+    print("success=false")
+    print(f"error_class={exc.__class__.__name__}")
+    print(f"error_message={exc}")
+    if os.environ.get("AI_BROKER_TRACEBACK"):
+        traceback.print_exc()
+    sys.exit(1)
+
+if result.get("ok"):
+    print("success=true")
+    metadata = result.get("metadata", {}) if isinstance(result.get("metadata"), dict) else {}
+    print(f"response_model={metadata.get('model', model)}")
+    payload = result.get("result", {})
+    response_text = payload.get("text", "") if isinstance(payload, dict) else ""
+    if response_text:
+        print(f"response_text={response_text}")
+    else:
+        print("response_text=")
+        print_empty_text_diagnostics(result)
+    sys.exit(0)
+
+print("success=false")
+print(f"error_class={result.get('stage', 'provider_call')}")
+print(f"error_message={result.get('error', 'unknown error')}")
+print("result=" + safe_json(result))
+sys.exit(1)
+PY

@@ -1,0 +1,245 @@
+#!/usr/bin/env bash
+
+set -u
+
+show_help() {
+  cat <<'EOF'
+Usage:
+  bsh                Start an interactive broker shell
+  bsh -c 'COMMAND'   Submit one shell command through ai_broker.py
+  bsh -a 'PROMPT'    Submit one ASK query through ai_broker.py
+
+Interactive commands:
+  ASK <prompt>       Send an LLM query through the broker
+  cd <dir>           Change the local working directory for later broker calls
+  pwd                Show the local working directory
+  role [name]        Show or set the broker role
+  help               Show this help
+  quit / exit        Leave bsh
+
+Environment:
+  BSH_ROLE           Default broker role (default: developer)
+  BSH_ASK_INTENT     LLM intent for ASK (default: analyze)
+EOF
+}
+
+run_broker_request() {
+  local task_type="$1"
+  local payload_value="$2"
+  local cwd_value="$3"
+  local role_value="$4"
+  local ask_intent_value="${5:-analyze}"
+
+  python3 - "$task_type" "$payload_value" "$cwd_value" "$role_value" "$ask_intent_value" <<'PY'
+import json
+import os
+import sys
+
+from ai_broker import AIBroker
+
+
+def build_task(task_type: str, payload_value: str, cwd_value: str, ask_intent: str):
+    if task_type == "shell":
+        return {
+            "type": "shell",
+            "intent": "execute",
+            "cwd": cwd_value,
+            "payload": {"command": payload_value},
+        }
+    if task_type == "ask":
+        return {
+            "type": "llm",
+            "intent": ask_intent,
+            "cwd": cwd_value,
+            "payload": {"text": payload_value},
+        }
+    raise ValueError(f"Unsupported task type: {task_type}")
+
+
+def print_json(label: str, payload):
+    print(f"{label} {json.dumps(payload, sort_keys=True)}")
+
+
+task_type, payload_value, cwd_value, role_value, ask_intent_value = sys.argv[1:6]
+broker = AIBroker()
+task = build_task(task_type, payload_value, cwd_value, ask_intent_value)
+decision = broker.review_task(task, user_role=role_value)
+
+print_json("DECISION", decision)
+if not decision.get("approved"):
+    sys.exit(1)
+
+result = broker.execute_task(task, decision)
+print_json("RESULT", result)
+sys.exit(0 if result.get("ok") else 2)
+PY
+}
+
+print_broker_output() {
+  local broker_output="$1"
+  local status="$2"
+
+  BROKER_OUTPUT="$broker_output" python3 - "$status" <<'PY'
+import json
+import os
+import sys
+
+
+def emit_decision(decision):
+    if decision.get("approved"):
+        provider = decision.get("provider", "?")
+        risk = decision.get("risk_tier", "?")
+        cost = float(decision.get("estimated_cost", 0.0))
+        print(f"[approved] provider={provider} risk={risk} estimated_cost=${cost:.6f}")
+    else:
+        stage = decision.get("stage", "unknown")
+        error = decision.get("error", "Request denied")
+        print(f"[denied] stage={stage} error={error}", file=sys.stderr)
+
+
+def emit_result(result):
+    if not result.get("ok"):
+        stage = result.get("stage", "unknown")
+        error = result.get("error", "Execution failed")
+        print(f"[error] stage={stage} error={error}", file=sys.stderr)
+        return
+
+    payload = result.get("result")
+    if isinstance(payload, dict) and "stdout" in payload and "stderr" in payload:
+        stdout = payload.get("stdout", "")
+        stderr = payload.get("stderr", "")
+        if stdout:
+            print(stdout, end="" if stdout.endswith("\n") else "\n")
+        if stderr:
+            print(stderr, end="" if stderr.endswith("\n") else "\n", file=sys.stderr)
+        returncode = payload.get("returncode", 0)
+        print(f"[exit {returncode}]")
+        return
+
+    if isinstance(payload, dict) and "text" in payload:
+        text = str(payload.get("text", ""))
+        if text:
+            print(text)
+        else:
+            print("[empty response]")
+        return
+
+    print(json.dumps(payload, indent=2, sort_keys=True))
+
+
+raw_output = os.environ.get("BROKER_OUTPUT", "")
+status = int(sys.argv[1])
+decision = None
+result = None
+for line in raw_output.splitlines():
+    if line.startswith("DECISION "):
+        decision = json.loads(line[len("DECISION "):])
+    elif line.startswith("RESULT "):
+        result = json.loads(line[len("RESULT "):])
+
+if decision is None:
+    print("[error] broker returned no decision payload", file=sys.stderr)
+    sys.exit(1)
+
+emit_decision(decision)
+if result is not None:
+    emit_result(result)
+
+sys.exit(status)
+PY
+}
+
+current_role="${BSH_ROLE:-developer}"
+ask_intent="${BSH_ASK_INTENT:-analyze}"
+current_dir="$(pwd)"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  show_help
+  exit 0
+fi
+
+if [[ "${1:-}" == "-c" ]]; then
+  if [[ $# -lt 2 ]]; then
+    echo "bsh: -c requires a command" >&2
+    exit 2
+  fi
+  output="$(run_broker_request shell "$2" "$current_dir" "$current_role" "$ask_intent")"
+  status=$?
+  print_broker_output "$output" "$status"
+  exit $status
+fi
+
+if [[ "${1:-}" == "-a" ]]; then
+  if [[ $# -lt 2 ]]; then
+    echo "bsh: -a requires a prompt" >&2
+    exit 2
+  fi
+  output="$(run_broker_request ask "$2" "$current_dir" "$current_role" "$ask_intent")"
+  status=$?
+  print_broker_output "$output" "$status"
+  exit $status
+fi
+
+while true; do
+  printf 'bsh:%s:%s$ ' "$current_role" "${current_dir##*/}"
+  if ! IFS= read -r line; then
+    printf '\n'
+    break
+  fi
+
+  trimmed="${line#"${line%%[![:space:]]*}"}"
+  if [[ -z "$trimmed" ]]; then
+    continue
+  fi
+
+  case "$trimmed" in
+    exit|quit)
+      break
+      ;;
+    help)
+      show_help
+      continue
+      ;;
+    pwd)
+      printf '%s\n' "$current_dir"
+      continue
+      ;;
+    cd)
+      current_dir="$HOME"
+      continue
+      ;;
+    cd\ *)
+      target="${trimmed#cd }"
+      if [[ "$target" != /* ]]; then
+        target="$current_dir/$target"
+      fi
+      if resolved="$(cd "$target" 2>/dev/null && pwd)"; then
+        current_dir="$resolved"
+      else
+        echo "bsh: cd: $target: No such directory" >&2
+      fi
+      continue
+      ;;
+    role)
+      printf '%s\n' "$current_role"
+      continue
+      ;;
+    role\ *)
+      current_role="${trimmed#role }"
+      printf 'role=%s\n' "$current_role"
+      continue
+      ;;
+  esac
+
+  if [[ "$trimmed" == ASK\ * ]]; then
+    prompt="${trimmed#ASK }"
+    output="$(run_broker_request ask "$prompt" "$current_dir" "$current_role" "$ask_intent")"
+    status=$?
+    print_broker_output "$output" "$status"
+    continue
+  fi
+
+  output="$(run_broker_request shell "$trimmed" "$current_dir" "$current_role" "$ask_intent")"
+  status=$?
+  print_broker_output "$output" "$status"
+done

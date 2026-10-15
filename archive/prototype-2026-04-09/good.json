@@ -1,0 +1,7 @@
+{
+  "name": "bash",
+  "arguments": {
+    "command": "ls",
+    "description": "List files in the current directory."
+  }
+}

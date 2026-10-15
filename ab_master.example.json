@@ -1,0 +1,13 @@
+{
+  "submit_uids": [1001],
+  "role": "developer",
+  "policy_path": "/home/gross/git/ai_broker/policy.json",
+  "runtime_dir": "/home/gross/.local/state/ab-master",
+  "submit_socket": "/tmp/ab-submit.sock",
+  "ttl_seconds": 300,
+  "max_pending": 100,
+  "execution_timeout_seconds": 30,
+  "operations": [{"argv": ["/usr/bin/pwd"], "cwd": "/home/gross/ab-workspace"}],
+  "reviewer_provider": null,
+  "reviewer_role": "reviewer"
+}

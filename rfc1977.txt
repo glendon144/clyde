@@ -1,0 +1,226 @@
+RFC 1977-Δ
+Request for Comments: AI Broker Control Plane
+Category: Experimental / Slightly Paranoid
+Status: Informational (but you’d be wise to read it twice)
+
+Author: G. (with assistance from a cooperative machine)
+Date: April 13, 2026 (spiritually 1977)
+
+---
+
+### 1. Introduction
+
+In recent years, the computing community has observed a curious development:
+systems are now capable of producing results whose provenance, cost, and internal reasoning are not readily accessible to their operators.
+
+This phenomenon, herein referred to as **“dark behavior”**, arises when automated processes generate outputs without corresponding human comprehension or economic awareness.
+
+Simultaneously, operators have begun to rely upon external “intelligence utilities” (hereafter: *Providers*) whose availability, pricing, and disposition may vary without notice, apology, or philosophical consistency.
+
+This document proposes a modest remedy:
+
+> **Insert a Broker between man and machine.**
+
+---
+
+### 2. Problem Statement
+
+Traditional computing systems assumed:
+
+1. The operator understood the program
+2. The program ran locally
+3. Costs were bounded and visible
+4. Dependencies were stable (or at least politely unstable)
+
+These assumptions no longer hold.
+
+Modern systems exhibit:
+
+* **Unbounded inference loops** (see: “the $350 incident”)
+* **Opaque outputs** (see: “looks correct, cannot explain”)
+* **External dependency volatility** (see: “account suspended, explanation pending”)
+* **Economic drift** (see: “cheap per call, expensive per night”)
+
+Furthermore, Providers have begun vertically integrating their offerings, thereby transforming from neutral utilities into strategic actors.
+
+This introduces what we cautiously term:
+
+> **Supply Chain Personality Risk**
+
+---
+
+### 3. On the Nature of Certain Providers
+
+It has been observed that some future entities may derive their naming conventions from the Greek word *anthropos* (“man”).
+
+While this is philologically respectable, it introduces a subtle architectural concern.
+
+Namely:
+
+> Systems named after Man may inherit the well-documented properties of Man.
+
+These include, but are not limited to:
+
+* Opportunistic pricing adjustments
+* Selective enforcement of rules
+* Strategic ambiguity
+* Competitive instinct
+* Occasional moral improvisation
+
+This document does not assert malicious intent.
+
+It merely observes that:
+
+> **Man is not a deterministic subsystem.**
+
+Accordingly, any dependency on such entities must be treated with appropriate engineering caution.
+
+---
+
+### 4. Proposed Architecture: The AI Broker
+
+The AI Broker is a mediating system placed between all internal requests and all external intelligence Providers.
+
+It performs the following functions:
+
+#### 4.1 Routing
+
+Determines which Provider (if any) should handle a given request.
+
+#### 4.2 Policy Enforcement
+
+Ensures that all requests conform to local rules regarding:
+
+* allowed operations
+* permitted Providers
+* sensitivity constraints
+
+#### 4.3 Cost Governance
+
+Tracks and enforces economic limits, including:
+
+* per-request estimation
+* daily budgets
+* refusal under excessive expenditure
+
+#### 4.4 Caching (cf. Squid)
+
+Remembers prior results and avoids recomputation where possible.
+
+#### 4.5 Prefetch (cf. ISA Server)
+
+Performs anticipatory computation during low-cost intervals (e.g., 0400 hours), thereby improving perceived responsiveness and reducing peak expenditure.
+
+#### 4.6 Audit Logging
+
+Maintains a complete record of:
+
+* requests
+* Providers used
+* costs incurred
+* fallback events
+
+---
+
+### 5. Design Principle
+
+The system adheres to a single governing rule:
+
+> **No intelligence request shall leave the system unmediated.**
+
+Corollaries include:
+
+* No Provider shall be trusted implicitly
+* No cost shall be incurred invisibly
+* No computation shall be repeated unnecessarily
+* No dependency shall be singular
+
+---
+
+### 6. Operational Modes
+
+The Broker supports multiple operating states:
+
+**Normal Mode**
+Balanced routing across Providers.
+
+**Economy Mode**
+Preference for local or low-cost Providers.
+
+**Isolation Mode**
+All external Providers disabled. Local computation only.
+
+**Degraded Mode**
+Fallback behavior when Providers become unavailable or disagreeable.
+
+---
+
+### 7. Advantages
+
+Deployment of the AI Broker yields the following benefits:
+
+* **Economic Stability**
+  (Prevents silent financial hemorrhage)
+
+* **Operational Resilience**
+  (Survives Provider outages and temperament shifts)
+
+* **Transparency**
+  (Reduces dark behavior through logging and caching)
+
+* **Strategic Independence**
+  (Prevents undue influence by any single Provider)
+
+* **User Confidence**
+  (System behaves predictably, even when Providers do not)
+
+---
+
+### 8. Security Considerations
+
+The primary threat addressed by this architecture is not intrusion, but **over-trust**.
+
+Particularly:
+
+* Trust in opaque outputs
+* Trust in stable pricing
+* Trust in continued access
+
+The Broker mitigates these by introducing:
+
+* verification
+* limitation
+* diversification
+
+---
+
+### 9. Philosophical Note (Non-Normative)
+
+The computing field has long sought to remove the unpredictability of Man from its systems.
+
+Ironically, we now depend on systems built, operated, and priced by Man at scale.
+
+This RFC does not attempt to resolve this paradox.
+
+It merely recommends:
+
+> **Place a well-behaved machine between yourself and a less predictable one.**
+
+---
+
+### 10. Conclusion
+
+The AI Broker represents a modest return to first principles:
+
+* Observe before acting
+* Account before spending
+* Cache before recomputing
+* Route before trusting
+
+In an era of accelerating automation, it restores a simple idea:
+
+> **Control belongs at the boundary.**
+
+---
+
+End of RFC 1977-Δ

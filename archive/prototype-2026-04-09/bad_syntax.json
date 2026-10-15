@@ -1,0 +1,7 @@
+{
+  "name": "bash",
+  "arguments": {
+    "command": "ls | grep py",
+    "description": "Unsafe shell syntax test."
+  }
+}

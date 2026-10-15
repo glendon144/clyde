@@ -1,0 +1,17 @@
+{
+  "mode": "normal",
+  "enforcement": {"mode": "strict"},
+  "fallback": {"enabled": false},
+  "provider_retry_max_attempts": 1,
+  "provider_retry_attempts": {"fixture": 1},
+  "task_defaults": {"fixture": {"cache_ttl_seconds": 0}},
+  "roles": {"clyde": {"allow_tasks": {"fixture": ["fetch"]}, "allow_providers": ["fixture"]}},
+  "routing": {"task_routes": {"fixture": ["fixture"]}, "fallback_order": ["fixture"]},
+  "admission_rules": {
+    "default": "deny",
+    "rules": [{"name": "clyde-approved-fixture", "decision": "allow",
+      "when": "role == 'clyde' and task_type == 'fixture' and intent == 'fetch' and provider == 'fixture' and payload_keys == ['document_id'] and get(payload, 'document_id') == 'sandbox-introduction'",
+      "reason": "Only the Clyde introduction fixture is approved"}]
+  },
+  "fixture_documents": {}
+}

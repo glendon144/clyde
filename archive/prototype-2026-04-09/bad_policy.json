@@ -1,0 +1,7 @@
+{
+  "name": "bash",
+  "arguments": {
+    "command": "python3 setup.py",
+    "description": "Try to run a script."
+  }
+}

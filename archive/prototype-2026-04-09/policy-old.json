@@ -1,0 +1,20 @@
+{
+  "default": "deny",
+  "roles": {
+    "guest": {
+      "allow_commands": ["pwd", "ls", "head"],
+      "read_only": true,
+      "allow_paths": ["./docs", "./README.md"]
+    },
+    "developer": {
+      "allow_commands": ["pwd", "ls", "find", "grep", "head", "cat"],
+      "read_only": true,
+      "allow_paths": ["./", "./src", "./modules"]
+    },
+    "maintainer": {
+      "allow_commands": ["*"],
+      "read_only": false,
+      "allow_paths": ["./"]
+    }
+  }
+}
